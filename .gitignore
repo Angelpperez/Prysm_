@@ -57,7 +57,7 @@ htmlcov/
 Thumbs.db
 
 # ----------------------------
-# Secrets / local config (ajusta a tu proyecto)
+# Secrets / local config 
 # ----------------------------
 .env
 .env.*
