@@ -4,7 +4,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>80f7bee9-3185-4b86-8954-336c31253ba9</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>Prysm_.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -21,10 +22,18 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Prysm_.py" />
+    <Compile Include="vision_app\calibration\__init__.py" />
+    <Compile Include="main.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />
+    <Content Include="vision_app\vision\__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="io_service\" />
+    <Folder Include="vision_app\" />
+    <Folder Include="vision_app\calibration\" />
+    <Folder Include="vision_app\vision\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
