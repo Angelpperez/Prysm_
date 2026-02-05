@@ -7,9 +7,6 @@ from pypylon import pylon, genicam
 
 @dataclass
 class CameraCfg:
-  
-    offset_x: int = 0
-    offset_y: int = 0
     pixel_format: Optional[str] = None   # e.g. "BayerRG8", "RGB8", etc. (depende de tu cámara)
     exposure_us: Optional[float] = None  # microsegundos (si tu nodo es ExposureTime en us)
     gain: Optional[float] = None         # puede ser Gain (float) o GainRaw (int) según SFNC
