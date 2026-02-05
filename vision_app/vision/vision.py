@@ -6,6 +6,8 @@ from pypylon import pylon, genicam
 from PIL import Image
 import cv2
 import time
+import math
+import os
 
 @dataclass
 class CameraCfg:
@@ -158,10 +160,6 @@ class BaslerUsbCamera:
         node.FromString(value)
 
 
-import cv2
-import numpy as np
-import time
-import math
 
 # ---------- Overlay HUD ----------
 def draw_hud(frame, fps=None, estado="LIVE", distancia_mm=None, distancia_px=None,
@@ -206,18 +204,51 @@ def calcular_centroide(contorno):
     return None
 
 
+
+
+SCALE_FILE = "mm_per_pixel.txt"
+
+def load_scale(default=0.0):
+    if os.path.exists(SCALE_FILE):
+        try:
+            with open(SCALE_FILE, "r") as f:
+                return float(f.read().strip())
+        except Exception:
+            pass
+    return default
+
+def save_scale(mm_per_pixel: float):
+    with open(SCALE_FILE, "w") as f:
+        f.write(f"{mm_per_pixel:.12f}")
+
+def pick_farthest_pair(points):
+    best = None
+    best_d = -1.0
+    for i in range(len(points)):
+        for j in range(i + 1, len(points)):
+            d = math.dist(points[i], points[j])
+            if d > best_d:
+                best_d = d
+                best = (points[i], points[j], d)
+    return best  # (p1, p2, dist_px)
+
 def main():
     """
-    43.3 fps
-    45.7 fps (Device Link Throughput Limit mode set to Off)
-    24.3 fps (with triggering via Frame Start trigger)
+    Teclas:
+      q / ESC : salir
+      d       : ver thresh_debug
+      c       : calibrar usando DIST_REF_MM (ej. 1000 mm) con las marcas visibles
+      r       : reset a estimación óptica (o a 1.0 si WD inválido)
     """
 
-    # ----- Parámetros de medición -----
-    MM_PER_PIXEL = 1.0
-    DISTANCIA_NOMINAL_MM = 1000.0
+    # ========= CONFIG MANUAL (EDITA AQUÍ) =========
+    PIXEL_PITCH_UM = 2.0     # Pixel Size (H x V) = 2.0 µm
+    FOCAL_MM = 8.0           # Computar M0814-MP2: 8 mm
+    WORKING_DISTANCE_MM = 1600.0  # <-- Distancia lente->plano del cable (mm) MEDIDA A MANO
+    DIST_REF_MM = 1000.0     # referencia física para calibrar (1 metro)
     TOL_MM = 10.0
 
+    # ========= CÁMARA =========
     cfg = CameraCfg(width=3840, height=2160, fps=43, latest_only=True)
 
     cam = BaslerUsbCamera().open()
@@ -227,41 +258,49 @@ def main():
     win = "Basler RT"
     cv2.namedWindow(win, cv2.WINDOW_NORMAL)
 
-    # FPS suavizado (más estable)
+    # ========= ESTIMACIÓN ÓPTICA (mm/px) =========
+    pixel_pitch_mm = PIXEL_PITCH_UM / 1000.0  # µm -> mm
+    if WORKING_DISTANCE_MM > FOCAL_MM:
+        mm_per_pixel_est = pixel_pitch_mm * (WORKING_DISTANCE_MM - FOCAL_MM) / FOCAL_MM
+    else:
+        mm_per_pixel_est = 1.0  # fallback si WD inválido
+
+    # Si hay una escala guardada, úsala; si no, usa la estimación óptica
+    MM_PER_PIXEL = load_scale(default=0.0)
+    if MM_PER_PIXEL <= 0:
+        MM_PER_PIXEL = mm_per_pixel_est
+        save_scale(MM_PER_PIXEL)
+
+    # ========= DEBUG / DETECCIÓN =========
+    THRESH_VAL = 110
+    MIN_AREA = 100
+
+    # FPS suavizado
     t_last = time.time()
     fps_smoothed = None
     alpha = 0.2
     extra = "LatestOnly" if cfg.latest_only else "OneByOne"
 
-    # Umbral (si no detecta, este es el primer dial a ajustar)
-    THRESH_VAL = 110
-    MIN_AREA = 100
+    last_dist_px = None  # para calibración con tecla 'c'
 
     try:
         while True:
-            frame = cam.grab_bgr(timeout_ms=1000)
-            frame = np.ascontiguousarray(frame)
+            frame = np.ascontiguousarray(cam.grab_bgr(timeout_ms=1000))
 
-            # --- FPS ---
+            # FPS
             now = time.time()
             dt = now - t_last
             t_last = now
             fps_inst = (1.0 / dt) if dt > 0 else 0.0
             fps_smoothed = fps_inst if fps_smoothed is None else (alpha * fps_inst + (1 - alpha) * fps_smoothed)
 
-            # --- Pre-proceso ---
+            # Threshold
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # Opción A: umbral fijo (rápido)
             _, thresh = cv2.threshold(gray, THRESH_VAL, 255, cv2.THRESH_BINARY)
-
-            # Opción B (mejor si la iluminación cambia): Otsu
-            # _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
             contornos, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             centros = []
-            # Dibuja boxes + centroides
             for cnt in contornos:
                 area = cv2.contourArea(cnt)
                 if area > MIN_AREA:
@@ -273,54 +312,66 @@ def main():
                         centros.append(centro)
                         cv2.circle(frame, centro, 6, (0, 255, 0), -1)
 
-            # Para consistencia, ordena por X (izq->der)
-            centros.sort(key=lambda c: c[0])
-
             distancia_px = None
             distancia_mm = None
             estado = "LIVE"
             color = (0, 255, 255)
 
             if len(centros) >= 2:
-                c1, c2 = centros[0], centros[1]
-                distancia_px = math.dist(c1, c2)
+                # Usa el par más separado para evitar agarrar dos falsos positivos
+                c1, c2, distancia_px = pick_farthest_pair(centros)
+                last_dist_px = distancia_px
+
                 distancia_mm = distancia_px * MM_PER_PIXEL
 
-                if abs(distancia_mm - DISTANCIA_NOMINAL_MM) <= TOL_MM:
+                if abs(distancia_mm - DIST_REF_MM) <= TOL_MM:
                     estado = "NORMAL"
                     color = (0, 255, 0)
                 else:
                     estado = "ALERTA"
                     color = (0, 0, 255)
 
-                # Línea y etiqueta (overlay “encima”)
                 cv2.line(frame, c1, c2, color, 3)
                 mid = ((c1[0] + c2[0]) // 2, (c1[1] + c2[1]) // 2)
                 cv2.putText(frame, f"{distancia_mm:.1f} mm", (mid[0] + 10, mid[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2, cv2.LINE_AA)
 
-            # HUD primero o después:
-            # - Si lo dibujas al final, puede “oscurecer” overlays en la franja superior.
-            # - Aquí lo dibujamos al final, pero SOLO afecta a la franja superior.
+            # HUD (reutiliza tu draw_hud)
+            extra2 = (f"{extra} | mm/px:{MM_PER_PIXEL:.6f} (est:{mm_per_pixel_est:.6f}) "
+                      f"| WD:{WORKING_DISTANCE_MM:.0f}mm f:{FOCAL_MM:.1f}mm p:{PIXEL_PITCH_UM:.1f}um | c=cal")
             draw_hud(frame, fps=fps_smoothed, estado=estado,
                      distancia_mm=distancia_mm, distancia_px=distancia_px,
-                     nominal_mm=DISTANCIA_NOMINAL_MM, tol_mm=TOL_MM,
-                     extra=extra)
+                     nominal_mm=DIST_REF_MM, tol_mm=TOL_MM,
+                     extra=extra2)
 
             cv2.imshow(win, frame)
 
             key = cv2.waitKey(1) & 0xFF
             if key in (ord('q'), 27):
                 break
-            # Debug rápido: presiona 'd' para ver el binario y validar detección
             if key == ord('d'):
                 cv2.imshow("thresh_debug", thresh)
+
+            # Calibrar con referencia física (1 m) cuando tengas marcas bien detectadas
+            if key == ord('c'):
+                if last_dist_px and last_dist_px > 0:
+                    MM_PER_PIXEL = DIST_REF_MM / last_dist_px
+                    save_scale(MM_PER_PIXEL)
+                    print(f"[CALIBRADO] mm/px = {MM_PER_PIXEL:.12f} (guardado en {SCALE_FILE})")
+                else:
+                    print("[CALIBRADO] No hay 2 marcas confiables en pantalla.")
+
+            # Reset a estimación óptica (o fallback)
+            if key == ord('r'):
+                MM_PER_PIXEL = mm_per_pixel_est if mm_per_pixel_est > 0 else 1.0
+                save_scale(MM_PER_PIXEL)
+                print(f"[RESET] mm/px = {MM_PER_PIXEL:.12f} (est óptica)")
 
     finally:
         cam.stop()
         cam.close()
         cv2.destroyAllWindows()
 
-
 if __name__ == "__main__":
     main()
+
