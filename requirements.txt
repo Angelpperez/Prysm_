@@ -1,0 +1,5 @@
+pypylon == 4.2.0
+
+pillow == 12.1.0
+opencv-python
+#instalar numpy

@@ -25,9 +25,11 @@
     <Compile Include="vision_app\calibration\__init__.py" />
     <Compile Include="main.py" />
     <Compile Include="vision_app\vision\vision.py" />
+    <Compile Include="vision_app\__init__.py" />
   </ItemGroup>
   <ItemGroup>
     <Content Include=".gitignore" />
+    <Content Include="requirements.txt" />
     <Content Include="vision_app\vision\__init__.py" />
   </ItemGroup>
   <ItemGroup>
