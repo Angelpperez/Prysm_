@@ -19,7 +19,7 @@ class CameraCfg:
     exposure_us: Optional[float] = None  # microsegundos (si tu nodo es ExposureTime en us)
     gain: Optional[float] = None         # puede ser Gain (float) o GainRaw (int) según SFNC
     fps: Optional[float] = None
-    latest_only: bool = True             # baja latencia
+    latest_only: bool = True             # baja latenciagit
 
 
 class BaslerUsbCamera:
