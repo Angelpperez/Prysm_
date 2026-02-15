@@ -12,7 +12,7 @@ import math
 
  
 def main():
-    # Parámetros de calibración (ejemplo: 1 píxel = 0.5 mm, 1 píxel= 1 mm) 
+  
 
     MM_PER_PIXEL = 1 
 
@@ -20,7 +20,7 @@ def main():
 
  
 
-    # Inicializar cámara 
+    # Inicializar cï¿½mara 
 
     video_path = "Muestra_01.mp4" 
 
@@ -67,7 +67,7 @@ def main():
       
  
 
-        # Convertir a gris y binarizar (ejemplo simple, ajustar según marcas reales) 
+        # Convertir a gris y binarizar (ejemplo simple, ajustar segï¿½n marcas reales) 
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
 
@@ -115,7 +115,7 @@ def main():
 
             # Estado 
 
-            if abs(distancia_mm - DISTANCIA_NOMINAL_MM) <= 10:  # tolerancia ±10 mm 
+            if abs(distancia_mm - DISTANCIA_NOMINAL_MM) <= 10:  # tolerancia ï¿½10 mm 
 
                 estado = "NORMAL" 
 
@@ -127,7 +127,7 @@ def main():
 
                 color = (0,0,255) 
 
-                # Aquí se puede enviar señal al PLC (ejemplo: Modbus/TCP o GPIO) 
+                # Aquï¿½ se puede enviar seï¿½al al PLC (ejemplo: Modbus/TCP o GPIO) 
 
  
 
