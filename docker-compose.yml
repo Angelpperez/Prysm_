@@ -1,0 +1,21 @@
+﻿name: prysm
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      PRYSM_HOST: "0.0.0.0"
+      PRYSM_PORT: "8000"
+      PRYSM_VISION_SERVICE_URL: "http://host.docker.internal:8001"
+      PRYSM_VISION_PUBLIC_URL: "http://host.docker.internal:8001"
+    volumes:
+      - ./api_service/static:/app/api_service/static:ro
+      - ./favicon.ico:/app/favicon.ico:ro
+    restart: unless-stopped
+
+volumes: {}
+

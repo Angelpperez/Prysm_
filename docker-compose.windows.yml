@@ -1,0 +1,7 @@
+﻿services:
+  vision:
+    environment:
+      PRYSM_VIDEO_SOURCE: "synthetic"
+      PRYSM_WIDTH: "1280"
+      PRYSM_HEIGHT: "720"
+      PRYSM_FPS: "15"
