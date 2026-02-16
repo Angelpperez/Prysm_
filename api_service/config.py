@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     host: str = "0.0.0.0"
     port: int = 8000
-    ui_title: str = "Prysm Monitor"
+    ui_title: str = "Prysmian Monitor"
     status_refresh_ms: int = 1000
     vision_service_url: str = "http://localhost:8001"
     vision_public_url: Optional[str] = None
