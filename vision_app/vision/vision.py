@@ -272,7 +272,7 @@ def main():
         save_scale(MM_PER_PIXEL)
 
     # ========= DEBUG / DETECCIÓN =========
-    THRESH_VAL = 110
+    THRESH_VAL = 69
     MIN_AREA = 100
 
     # FPS suavizado
